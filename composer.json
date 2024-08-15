@@ -1,6 +1,7 @@
 {
 	"name": "gflauder/pyritephp",
 	"description": "PyritePHP",
+	"type": "library",
 	"license": "MIT",
 	"authors": [
 		{
