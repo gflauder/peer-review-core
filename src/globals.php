@@ -14,6 +14,7 @@
  * @license   https://opensource.org/licenses/MIT  MIT
  * @link      https://github.com/vphantom/pyritephp
  */
+require_once __DIR__ . "/events.php";
 
 $GLOBALS['PPHP'] = array();
 
