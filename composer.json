@@ -1,11 +1,11 @@
 {
-	"name": "vphantom/pyritephp",
+	"name": "gflauder/pyritephp",
 	"description": "PyritePHP",
 	"license": "MIT",
 	"authors": [
 		{
-			"name": "Stéphane Lavergne",
-			"email": "lis@imars.com"
+			"name": "Stéphane Lavergne/Gary Flauder",
+			"email": "gflauder@hotmail.com"
 		}
 	],
 	"require": {
