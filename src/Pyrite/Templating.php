@@ -335,7 +335,7 @@ class Templating
      *
      * @return string Translated string in current locale
      */
-    function gettext($string)
+    public static function gettext($string)
     {
         global $PPHP;
         $req = grab('request');

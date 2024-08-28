@@ -281,7 +281,7 @@ class Users
         $onetime = null;
         if (isset($cols['onetime'])) {
             $ott = ", onetimeTime=datetime('now') ";
-            $onetime = md5(mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+            $onetime = md5(random_bytes(32));
             $cols['onetimeHash'] = password_hash($onetime, PASSWORD_DEFAULT);
             if (is_numeric($cols['onetime'])) {
                 $cols['onetimeMax'] = $cols['onetime'];

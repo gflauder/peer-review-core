@@ -241,7 +241,8 @@ class Session
     public static function beginForm($name)
     {
         $name = self::_formHash($name);
-        $token = md5(mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+        //$token = md5(mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+        $token = md5(random_bytes(32));
         $_SESSION[$name] = $token;
         return '<input type="hidden" name="'.$name.'" value="'.$token.'" />';
     }
