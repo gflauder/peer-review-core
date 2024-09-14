@@ -146,6 +146,20 @@ class Templating
 
         $twigLoader = new \Twig_Loader_Filesystem();
 
+        function addTwigPaths($loader, $baseDir)
+        {
+            $loader->addPath($baseDir);
+            $dirs = new \RecursiveDirectoryIterator($baseDir, \FilesystemIterator::SKIP_DOTS);
+            foreach (new \RecursiveIteratorIterator($dirs, \RecursiveIteratorIterator::SELF_FIRST) as $dir) {
+                if ($dir->isDir()) {
+                    $loader->addPath($dir->getPathname());
+                }
+            }
+        }
+
+        // Add the base template path and all subdirectories
+        addTwigPaths($twigLoader, $tplBase);
+
         // Don't choke if language from URL is bogus
         try {
             $twigLoader->addPath($tplBase . '/' . self::$_lang);
@@ -160,7 +174,7 @@ class Templating
             };
         };
 
-        $twigLoader->addPath($tplBase);
+
         $twigConfig = array(
             'autoescape' => 'html',
             'debug' => $PPHP['config']['global']['debug']

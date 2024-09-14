@@ -2,6 +2,11 @@
 
 [![license](https://img.shields.io/github/license/vphantom/pyritephp.svg?style=plastic)]() [![GitHub release](https://img.shields.io/github/release/vphantom/pyritephp.svg?style=plastic)]()
 
+## Attribution
+
+This project is a fork of [Original Project](https://github.com/original-author/original-project) by [Original Author](https://github.com/original-author).
+
+
 PHP 5 and Bootstrap 3 framework to kick-start multilingual web application development
 
 Simple event-driven framework for creating PHP 5 applications backed by a PDO database and with a Twitter Bootstrap user interface.  Emphasis has been given on security:
@@ -67,7 +72,7 @@ $ composer create-project vphantom/pyritephp-example foo
 ### Requirements
 
 * PHP 5.5 or later
-* PHP extension modules: mbstring, mcrypt, pdo_sqlite, readline
+* PHP extension modules: mbstring, pdo_sqlite, readline
 * SQLite 3
 * Typical Linux command line tools: make, wget, gzip
 * A web server of course

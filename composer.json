@@ -10,10 +10,9 @@
 		}
 	],
 	"require": {
-		"php": ">=7.0",
+		"php": ">=7.4",
 		"ext-dom": "*",
 		"ext-mbstring": "*",
-		"ext-mcrypt": "*",
 		"ext-pdo_sqlite": "*",
 		"ext-readline": "*",
 		"ext-session": "*",
@@ -25,7 +24,7 @@
 	"require-dev": {
 		"ext-xdebug": "^2.0",
 		"phpunit/phpunit": "^6.0",
-		"satooshi/php-coveralls": "^1.0"
+		"php-coveralls/php-coveralls": "^1.0"
 	},
 	"autoload": {
 		"psr-4": {

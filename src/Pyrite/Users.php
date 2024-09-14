@@ -340,9 +340,10 @@ class Users
             // Else passwordHash will be '*' per table definition
         };
         if (isset($cols['onetime'])) {
-            $onetime = md5(mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+            // Generate a secure random value using openssl_random_pseudo_bytes
+            $onetime = md5(openssl_random_pseudo_bytes(32));
             $cols['onetimeHash'] = password_hash($onetime, PASSWORD_DEFAULT);
-        };
+        }
         if (($result = $db->insert('users', $cols)) !== false) {
             $creator = $result;
             if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
