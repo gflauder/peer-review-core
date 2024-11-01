@@ -1,0 +1,110 @@
+<?php
+namespace Pyrite\Core;
+
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'vendor/autoload.php';
+
+class EMail
+{
+    protected $envelope;
+    protected $parts;
+    public $charset;
+
+    public function __construct()
+    {
+        $this->envelope = array();
+        $this->parts = array();
+        $this->charset = 'UTF-8';
+    }
+
+    public function __set($name, $value)
+    {
+        $this->envelope[strtr(strtolower($name), '_', '-')] = $value;
+    }
+
+    protected function undressEmail($email)
+    {
+        $matches = array();
+        preg_match('/^[^<]*?((<([^@]+@[^>]+)>)|([^@\s]+@\S+))\s*$/', $email, $matches);
+        if (is_array($matches)) {
+            if (!empty($matches[3])) {
+                return $matches[3];
+            } elseif (!empty($matches[4])) {
+                return $matches[4];
+            }
+        }
+        return '';
+    }
+
+    public function send()
+    {
+        $mail = new PHPMailer(true);
+
+        try {
+            $mail->isSMTP();
+            $mail->Host = 'localhost';
+            $mail->Port = 1025;
+            $mail->SMTPAuth = false;
+
+            $mail->setFrom($this->undressEmail($this->envelope['from']));
+            $mail->addAddress($this->undressEmail($this->envelope['to']));
+            $mail->Subject = $this->envelope['subject'];
+
+            foreach ($this->parts as $part) {
+                if ($part['type'] == 'text/plain') {
+                    $mail->Body = $part['data'];
+                } elseif ($part['type'] == 'text/html') {
+                    $mail->isHTML(true);
+                    $mail->Body = $part['data'];
+                } else {
+                    $mail->addAttachment($part['data'], $part['name']);
+                }
+            }
+
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            return false;
+        }
+    }
+
+    public function addData($type, $displayname, $data)
+    {
+        $this->parts[] = array('type' => $type, 'name' => $displayname, 'data' => $data);
+    }
+
+    public function addFile($filepath, $displayname, $mimetype = null)
+    {
+        $fileContents = file_get_contents($filepath);
+        if ($mimetype === null) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mimetype = $finfo->buffer($fileContents);
+        }
+        $this->addData($mimetype, $displayname, $fileContents);
+    }
+
+    public function addText($text)
+    {
+        $this->parts[] = array('type' => 'text/plain', 'data' => $text);
+    }
+
+    public function addHTML($html)
+    {
+        $this->parts[] = array('type' => 'text/html', 'data' => $html);
+    }
+
+    public function addTextHTML($text, $html)
+    {
+        $this->parts[] = array(
+            'type' => 'multipart/alternative',
+            'data' => array(
+                array('type' => 'text/plain', 'data' => $text),
+                array('type' => 'text/html', 'data' => $html)
+            )
+        );
+    }
+}

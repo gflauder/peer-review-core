@@ -18,6 +18,10 @@
 
 namespace Pyrite;
 
+
+use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\PHPMailer;
+
 /**
  * Sendmail class
  *
@@ -37,14 +41,14 @@ class Sendmail
      */
     public static function bootstrap()
     {
-        on('install',       'Pyrite\Sendmail::install');
-        on('outbox',        'Pyrite\Sendmail::getOutbox');
-        on('outbox_email',  'Pyrite\Sendmail::getOutboxEmail');
-        on('outbox_save',   'Pyrite\Sendmail::setOutboxEmail');
+        on('install', 'Pyrite\Sendmail::install');
+        on('outbox', 'Pyrite\Sendmail::getOutbox');
+        on('outbox_email', 'Pyrite\Sendmail::getOutboxEmail');
+        on('outbox_save', 'Pyrite\Sendmail::setOutboxEmail');
         on('outbox_delete', 'Pyrite\Sendmail::deleteOutboxEmail');
-        on('outbox_send',   'Pyrite\Sendmail::sendOutboxEmail');
-        on('sendmail',      'Pyrite\Sendmail::send');
-        on('hourly',        'Pyrite\Sendmail::mailq');
+        on('outbox_send', 'Pyrite\Sendmail::sendOutboxEmail');
+        on('sendmail', 'Pyrite\Sendmail::send');
+        on('hourly', 'Pyrite\Sendmail::mailq');
     }
 
     /**
@@ -160,14 +164,14 @@ class Sendmail
     /**
      * Insert/update an outbox e-mail
      *
-     * @param int    $id       E-mail ID (null to create)
-     * @param int    $mailfrom Reply-To address
-     * @param array  $to       Destination userIDs
-     * @param array  $cc       Carbon-copy userIDs
-     * @param array  $bcc      Blind carbon-copy userIDs
-     * @param string $subject  The subject line, ready to send
-     * @param string $html     Rich text content, ready to send
-     * @param array  $files    (Optional) List of [name,bytes,type] associative arrays
+     * @param int $id E-mail ID (null to create)
+     * @param int $mailfrom Reply-To address
+     * @param array $to Destination userIDs
+     * @param array $cc Carbon-copy userIDs
+     * @param array $bcc Blind carbon-copy userIDs
+     * @param string $subject The subject line, ready to send
+     * @param string $html Rich text content, ready to send
+     * @param array $files (Optional) List of [name,bytes,type] associative arrays
      *
      * @return bool Whether the update was successful (possibly ID on success)
      */
@@ -187,7 +191,7 @@ class Sendmail
             'html' => $html
         );
         if ($mailfrom) {
-                $cols['mailfrom'] = $mailfrom;
+            $cols['mailfrom'] = $mailfrom;
         };
         if (is_array($cc)) {
             $cols['ccs'] = implode(';', $cc);
@@ -248,7 +252,7 @@ class Sendmail
      * Note that $tampered is TRUE by default to match v1.0.0 API where only
      * messages spooled in manual outboxes were then sent with this function.
      *
-     * @param int       $id       The e-mail ID
+     * @param int $id The e-mail ID
      * @param bool|null $tampered Did it go through manual outbox?
      *
      * @return bool Whether it succeeded
@@ -306,12 +310,12 @@ class Sendmail
      * Note that config.global.mail is used for the From field at all times.
      *
      * @param string $mailfrom Reply-To address
-     * @param string $to       Destination e-mail address(es) (or "Name <email"> combos)
-     * @param string $cc       Carbon-copy addresses (set null or '' to avoid)
-     * @param string $bcc      Blind carbon-copy addresses (null/'' to avoid)
-     * @param string $subject  The subject line
-     * @param string $html     Rich text content
-     * @param array  $files    List of [path,name,bytes,type] associative arrays
+     * @param string $to Destination e-mail address(es) (or "Name <email"> combos)
+     * @param string $cc Carbon-copy addresses (set null or '' to avoid)
+     * @param string $bcc Blind carbon-copy addresses (null/'' to avoid)
+     * @param string $subject The subject line
+     * @param string $html Rich text content
+     * @param array $files List of [path,name,bytes,type] associative arrays
      *
      * @return bool Whether it succeeded
      */
@@ -319,25 +323,60 @@ class Sendmail
     {
         global $PPHP;
 
-        $msg = new \Email();
-        $msg->X_Mailer_Info = 'PyritePHP v1.0';
-        $msg->to = $to;
-        if ($cc && $cc !== '') {
-            $msg->cc = $cc;
-        };
-        if ($bcc && $bcc !== '') {
-            $msg->bcc = $bcc;
-        };
-        $msg->from = $PPHP['config']['global']['mail_from'];
-        if ($mailfrom) {
-            $msg->reply_to = $mailfrom;
-        };
-        $msg->subject = $subject;
-        $msg->addTextHTML(filter('html_to_text', $html), $html);
-        foreach ($files as $file) {
-            $msg->addFile("{$PPHP['dir']}/{$file['path']}/{$file['name']}", $file['name'], $file['type']);
-        };
-        return ($msg->send() === 0);
+        $mail = new PHPMailer(true);
+
+        try {
+            $mail->isSMTP();
+            $mail->Host = $PPHP['config']['Mail']['host'];
+            $mail->SMTPAuth =  $PPHP['config']['Mail']['SMTP_Auth'];
+            $mail->Username = $PPHP['config']['Mail']['username'];
+            $mail->Password = $PPHP['config']['Mail']['password'];
+            //$mail->SMTPSecure = $PPHP['config']['Mail']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port = $PPHP['config']['Mail']['port'];
+            $mail->SMTPSecure = null;
+
+            // Custom header
+            $mail->addCustomHeader('X-Mailer-Info', 'PyritePHP v1.0');
+            // From
+            $mail->setFrom($PPHP['config']['Mail']['mail_from_address'], $PPHP['config']['Mail']['mail_from_name']);
+
+
+            // Add recipients
+            // Add recipients
+            foreach ($to as $recipient) {
+                $mail->addAddress($recipient['email'], $recipient['name']);
+            }
+            if ($cc) {
+                foreach ($cc as $recipient) {
+                    $mail->addCC($recipient['email'], $recipient['name']);
+                }
+            }
+            if ($bcc) {
+                foreach ($bcc as $recipient) {
+                    $mail->addBCC($recipient['email'], $recipient['name']);
+                }
+            }
+            if ($mailfrom) {
+                $mail->addReplyTo($mailfrom);
+            }
+
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $html;
+            $mail->AltBody = strip_tags($html);
+
+            // Attachments
+            foreach ($files as $file) {
+                $mail->addAttachment("{$PPHP['dir']}/{$file['path']}/{$file['name']}", $file['name']);
+            }
+
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            return false;
+        }
     }
 
     /**
@@ -349,24 +388,23 @@ class Sendmail
      */
     private static function _usersToRecipients($users)
     {
-        $out = array();
+        $emails = array();
 
         if (!is_array($users)) {
             $users = array($users);
-        };
+        }
 
         foreach ($users as $id) {
             $user = grab('user_resolve', $id);
             if ($user !== false) {
-                if ($user['name'] !== '') {
-                    $out[] = '' . filter('clean_name', $user['name']) . ' <' . $user['email'] . '>';
-                } else {
-                    $out[] = $user['email'];
-                };
-            };
-        };
+                $emails[] = array(
+                    'name' => $user['name'] !== '' ? filter('clean_name', $user['name']) : '',
+                    'email' => $user['email']
+                );
+            }
+        }
 
-        return (count($out) > 0) ? implode(', ', $out) : null;
+        return $emails;
     }
 
     /**
@@ -380,13 +418,13 @@ class Sendmail
      * A rudimentary text version will be derived from the HTML version in
      * order to build a proper 'multipart/alternative' attachment.
      *
-     * @param array|int      $to       Destination userID(s)
-     * @param array|int|null $cc       (Optional) Carbon-copy userIDs
-     * @param array|int|null $bcc      (Optional) Blind carbon-copy userIDs
-     * @param string         $template Template to load in 'templates/email/' (i.e. 'confirmlink')
-     * @param array          $args     Arguments to pass to template
-     * @param array          $files    (Optional) List of [name,bytes,type] associative arrays
-     * @param bool|null      $nodelay  (Optional) Set true to bypass outbox
+     * @param array|int $to Destination userID(s)
+     * @param array|int|null $cc (Optional) Carbon-copy userIDs
+     * @param array|int|null $bcc (Optional) Blind carbon-copy userIDs
+     * @param string $template Template to load in 'templates/email/' (i.e. 'confirmlink')
+     * @param array $args Arguments to pass to template
+     * @param array $files (Optional) List of [name,bytes,type] associative arrays
+     * @param bool|null $nodelay (Optional) Set true to bypass outbox
      *
      * @return bool|int Whether sending succeeded, e-mail ID if one was created
      */

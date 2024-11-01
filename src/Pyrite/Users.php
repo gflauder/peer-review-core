@@ -37,17 +37,17 @@ class Users
      */
     public static function bootstrap()
     {
-        on('install',        'Pyrite\Users::install');
+        on('install', 'Pyrite\Users::install');
         on('user_fromemail', 'Pyrite\Users::fromEmail');
-        on('user_resolve',   'Pyrite\Users::resolve');
-        on('authenticate',   'Pyrite\Users::login');
-        on('user_update',    'Pyrite\Users::update');
-        on('user_create',    'Pyrite\Users::create');
-        on('user_search',    'Pyrite\Users::search');
-        on('ban_user',       'Pyrite\Users::ban');
-        on('unban_user',     'Pyrite\Users::unban');
-        on('clean_userids',  'Pyrite\Users::cleanList');
-        on('all_users',      'Pyrite\Users::listAll');
+        on('user_resolve', 'Pyrite\Users::resolve');
+        on('authenticate', 'Pyrite\Users::login');
+        on('user_update', 'Pyrite\Users::update');
+        on('user_create', 'Pyrite\Users::create');
+        on('user_search', 'Pyrite\Users::search');
+        on('ban_user', 'Pyrite\Users::ban');
+        on('unban_user', 'Pyrite\Users::unban');
+        on('clean_userids', 'Pyrite\Users::cleanList');
+        on('all_users', 'Pyrite\Users::listAll');
     }
 
     /**
@@ -163,8 +163,8 @@ class Users
     /**
      * Load a user by e-mail
      *
-     * @param string $email  E-mail address
-     * @param bool   $active (Optional) Require user be active, default true
+     * @param string $email E-mail address
+     * @param bool $active (Optional) Require user be active, default true
      *
      * @return array|bool Associative array for the user or false if not found
      */
@@ -188,9 +188,9 @@ class Users
      * manipulation.  Authenticating using $onetime, however, immediately
      * invalidates that password.
      *
-     * @param string $email    E-mail address
+     * @param string $email E-mail address
      * @param string $password Plain text password (supplied via web form)
-     * @param string $onetime  (Optional) Use this one-time password instead
+     * @param string $onetime (Optional) Use this one-time password instead
      *
      * @return array|bool Associative array for the user or false if not authorized
      */
@@ -199,14 +199,14 @@ class Users
         global $PPHP;
         $db = $PPHP['db'];
         $config = $PPHP['config']['global'];
-        $onetimeMaxLow  = $config['onetime_lifetime'] * 60;
+        $onetimeMaxLow = $config['onetime_lifetime'] * 60;
         $onetimeMaxHigh = $config['invite_lifetime'] * 24 * 3600;
 
         if (($user = self::fromEmail($email)) !== false) {
             if ($onetime !== '') {
                 // Make sure DB's onetimeMax is between our short onetime and long invite lifetimes.
                 $onetimeMax = min(max($onetimeMaxLow, $user['onetimeMax']), $onetimeMaxHigh);
-                if ($user['onetimeElapsed'] < $onetimeMax  &&  password_verify($onetime, $user['onetimeHash'])) {
+                if ($user['onetimeElapsed'] < $onetimeMax && password_verify($onetime, $user['onetimeHash'])) {
 
                     // Invalidate immediately, don't wait for expiration
                     if (!$PPHP['config']['global']['onetime_multiple']) {
@@ -247,7 +247,7 @@ class Users
      * its 'onetimeHash', resets 'onetimeTime'.  If it contains a number, it
      * will be set as the preferred expiration, in seconds.
      *
-     * @param int   $id   ID of the user to update
+     * @param int $id ID of the user to update
      * @param array $cols Associative array of columns to update
      *
      * @return string|bool Whether it succeeded, the one time token if appropriate
@@ -344,26 +344,35 @@ class Users
             $onetime = md5(openssl_random_pseudo_bytes(32));
             $cols['onetimeHash'] = password_hash($onetime, PASSWORD_DEFAULT);
         }
-        if (($result = $db->insert('users', $cols)) !== false) {
-            $creator = $result;
-            if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
-                $creator = $_SESSION['user']['id'];
-            };
-            trigger(
-                'log',
-                array(
-                    'userId'     => $creator,
-                    'objectType' => 'user',
-                    'objectId'   => $result,
-                    'action'     => 'created'
-                )
-            );
-            // If we're creating someone else's account, automatic approval of the e-mail address
-            if (pass('can', 'create', 'user')) {
-                trigger('grant', $result, 'member');
-            };
-
-        };
+        try {
+            if (($result = $db->insert('users', $cols)) !== false) {
+                $creator = $result;
+                if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+                    $creator = $_SESSION['user']['id'];
+                }
+                trigger(
+                    'log',
+                    array(
+                        'userId' => $creator,
+                        'objectType' => 'user',
+                        'objectId' => $result,
+                        'action' => 'created'
+                    )
+                );
+                // If we're creating someone else's account, automatic approval of the e-mail address
+                if (pass('can', 'create', 'user')) {
+                    trigger('grant', $result, 'member');
+                }
+            } else {
+                // Log the error if the insert operation fails
+                error_log("Failed to insert user: " . json_encode($cols));
+                // Log the last SQL error message
+                error_log("SQL Error: " . $db->lastError());
+            }
+        } catch (Exception $e) {
+            // Log any exceptions that occur
+            error_log("Exception occurred: " . $e->getMessage());
+        }
         return $result ? array($result, $onetime) : $result;
     }
 
@@ -454,8 +463,8 @@ class Users
      * - If $template is defined, any created user gets e-mailed an invitation
      * with a 'validation_link' present in that e-mail template.
      *
-     * @param array       $list     Mixed list of numbers and e-mail addresses
-     * @param array       $userData Extra columns for each user keyed by e-mail
+     * @param array $list Mixed list of numbers and e-mail addresses
+     * @param array $userData Extra columns for each user keyed by e-mail
      * @param string|null $template (Optional) Which template to e-mail new users
      *
      * @return array Clean list of valid userIDs

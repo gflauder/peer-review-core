@@ -53,6 +53,8 @@ class PDBquery
         } elseif ($args !== null) {
             $this->_args[] = $args;
         };
+        error_log("PDBquery initialized with query: " . $this->_query . " and args: " . json_encode($this->_args));
+
     }
 
     /**

@@ -138,7 +138,8 @@ class AuditTrail
             $objectType = $PPHP['contextType'];
             $objectId = $PPHP['contextId'];
         };
-
+        
+        $actingUserId = 0;
         if (isset($_SESSION['user']['id'])) {
             $actingUserId = $_SESSION['user']['id'];
             if ($userId === 0) {
