@@ -288,6 +288,7 @@ class Users
             };
         };
         $result = $db->update(
+
             'users',
             $cols,
             $ott . 'WHERE id=?',
@@ -299,7 +300,7 @@ class Users
             };
             return ($onetime !== null ? $onetime : true);
         };
-
+        echo "Failed to update user: " . json_encode($cols);
         return false;
     }
 

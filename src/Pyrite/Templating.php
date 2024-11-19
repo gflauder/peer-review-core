@@ -32,7 +32,7 @@ class Pyrite_Twig_ExitNode extends \Twig_Node
      * Constructor
      *
      * @param object $line from getLine()
-     * @param object $tag  from getTag()
+     * @param object $tag from getTag()
      */
     public function __construct($line, $tag = null)
     {
@@ -120,15 +120,15 @@ class Templating
      */
     public static function bootstrap()
     {
-        on('startup',       'Pyrite\Templating::startup', 99);
-        on('cli_startup',   'Pyrite\Templating::startup', 99);
-        on('shutdown',      'Pyrite\Templating::shutdown', 1);
-        on('render',        'Pyrite\Templating::render');
+        on('startup', 'Pyrite\Templating::startup', 99);
+        on('cli_startup', 'Pyrite\Templating::startup', 99);
+        on('shutdown', 'Pyrite\Templating::shutdown', 1);
+        on('render', 'Pyrite\Templating::render');
         on('render_blocks', 'Pyrite\Templating::renderBlocks');
-        on('set_env',       'Pyrite\Templating::setStash');
-        on('title',         'Pyrite\Templating::title');
-        on('http_status',   'Pyrite\Templating::status');
-        on('language',      'Pyrite\Templating::setLang');
+        on('set_env', 'Pyrite\Templating::setStash');
+        on('title', 'Pyrite\Templating::title');
+        on('http_status', 'Pyrite\Templating::status');
+        on('language', 'Pyrite\Templating::setLang');
     }
 
     /**
@@ -136,168 +136,195 @@ class Templating
      *
      * @return null
      */
-    public static function startup()
+
+public static function startup()
+{
+    global $PPHP;
+    $req = grab('request');
+
+    self::$_lang = $req['lang'];
+    $tplBase = $PPHP['dir'] . '/templates';
+
+    $twigLoader = new \Twig_Loader_Filesystem();
+
+    function addTwigPaths($loader, $baseDir)
     {
-        global $PPHP;
-        $req = grab('request');
-
-        self::$_lang = $req['lang'];
-        $tplBase = $PPHP['dir'] . '/templates';
-
-        $twigLoader = new \Twig_Loader_Filesystem();
-
-        function addTwigPaths($loader, $baseDir)
-        {
-            $loader->addPath($baseDir);
-            $dirs = new \RecursiveDirectoryIterator($baseDir, \FilesystemIterator::SKIP_DOTS);
-            foreach (new \RecursiveIteratorIterator($dirs, \RecursiveIteratorIterator::SELF_FIRST) as $dir) {
-                if ($dir->isDir()) {
-                    $loader->addPath($dir->getPathname());
-                }
+        $loader->addPath($baseDir);
+        $dirs = new \RecursiveDirectoryIterator($baseDir, \FilesystemIterator::SKIP_DOTS);
+        foreach (new \RecursiveIteratorIterator($dirs, \RecursiveIteratorIterator::SELF_FIRST) as $dir) {
+            if ($dir->isDir()) {
+                $loader->addPath($dir->getPathname());
             }
         }
+    }
 
-        // Add the base template path and all subdirectories
-        addTwigPaths($twigLoader, $tplBase);
+    // Add the language-specific template path first
+    try {
+        $twigLoader->addPath($tplBase . '/' . self::$_lang);
+    } catch (\Exception $e) {
+    };
 
-        // Don't choke if language from URL is bogus
+    // Add the base template path and all subdirectories
+    addTwigPaths($twigLoader, $tplBase);
+
+    // Add the default language template path as a fallback
+    if (self::$_lang !== $PPHP['config']['global']['default_lang']) {
         try {
-            $twigLoader->addPath($tplBase . '/' . self::$_lang);
+            $twigLoader->addPath($tplBase . '/' . $PPHP['config']['global']['default_lang']);
         } catch (\Exception $e) {
         };
+    }
 
-        // Be nice, don't even choke if templates aren't sorted by language
-        if (self::$_lang !== $PPHP['config']['global']['default_lang']) {
+    $twigConfig = array(
+        'autoescape' => 'html',
+        'debug' => $PPHP['config']['global']['debug']
+    );
+    if ($PPHP['config']['global']['production'] === true) {
+        $twigConfig['cache'] = $PPHP['config']['global']['docroot'] . $PPHP['config']['global']['twig_path'];
+    };
+    $twig = new \Twig_Environment($twigLoader, $twigConfig);
+
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            'mix', function ($path) use ($PPHP) {
+            $manifestPath = $PPHP['dir'] . '/dist/mix-manifest.json'; // Adjusted path
+            $manifestArray = [];
+
+            if (file_exists($manifestPath)) {
+                $jsonContent = file_get_contents($manifestPath); // Read the JSON file
+                $manifestArray = json_decode($jsonContent, true); // Decode JSON into an associative array
+
+                // Check for errors in decoding
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    echo 'Error decoding JSON: ' . json_last_error_msg();
+                    $manifestArray = []; // Fallback in case of error
+                }
+            }
+            // Remove the /dist prefix from $path
+           // $relativePath = str_replace('/dist', '', $path);
+
+
+            return isset($manifestArray[$path]) ? $manifestArray[$path] : $path;
+        }
+        )
+    );
+
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            'grab', function () {
+            $result = call_user_func_array('trigger', func_get_args());
+            return array_pop($result);
+        }
+        )
+    );
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            'pass', function () {
+            $result = call_user_func_array('trigger', func_get_args());
+            return array_pop($result) !== false;
+        }
+        )
+    );
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            'filter', function () {
+            return call_user_func_array('filter', func_get_args());
+        }
+        )
+    );
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            '__', function () {
+            return call_user_func_array('self::gettext', func_get_args());
+        }
+        )
+    );
+    $twig->addFunction(
+        new \Twig_SimpleFunction(
+            'title', function () {
+            return call_user_func_array('self::title', func_get_args());
+        }
+        )
+    );
+
+    $twig->addExtension(new \Twig_Extensions_Extension_Text());
+
+    // Add debugging tools
+    if ($PPHP['config']['global']['debug']) {
+        $twig->addExtension(new \Twig_Extension_Debug());
+        $twig->addFunction(
+            new \Twig_SimpleFunction(
+                'debug', function () {
+                return implode('', func_get_args());
+            }
+            )
+        );
+    } else {
+        $twig->addFunction(
+            new \Twig_SimpleFunction(
+                'debug', function () {
+                return '';
+            }
+            )
+        );
+        // Don't trust Twig to always mute dump() when debugging's off.
+        $twig->addFunction(
+            new \Twig_SimpleFunction(
+                'dump', function () {
+                return '';
+            }
+            )
+        );
+
+    };
+
+    // exit tag
+    $twig->addTokenParser(new Pyrite_Twig_TokenParser());
+
+    self::$_twig = $twig;
+
+    // Non-system gettext init
+    $localeDir = $PPHP['dir'] . '/locales/';
+    self::$_gettext = new \Gettext\Translator();
+    $pos = array($localeDir . self::$_lang . '.po');
+    if (self::$_lang !== $PPHP['config']['global']['default_lang']) {
+        $pos[] = $localeDir . $PPHP['config']['global']['default_lang'] . '.po';
+    };
+    foreach ($pos as $po) {
+        if (file_exists($po)) {
             try {
-                $twigLoader->addPath($tplBase . '/' . $PPHP['config']['global']['default_lang']);
-            } catch (\Exception $e) {
-            };
-        };
-
-
-        $twigConfig = array(
-            'autoescape' => 'html',
-            'debug' => $PPHP['config']['global']['debug']
-        );
-        if ($PPHP['config']['global']['production'] === true) {
-            $twigConfig['cache'] = $PPHP['config']['global']['docroot'] . $PPHP['config']['global']['twig_path'];
-        };
-        $twig = new \Twig_Environment($twigLoader, $twigConfig);
-        $twig->addFunction(
-            new \Twig_SimpleFunction(
-                'grab', function () {
-                    $result = call_user_func_array('trigger', func_get_args());
-                    return array_pop($result);
-                }
-            )
-        );
-        $twig->addFunction(
-            new \Twig_SimpleFunction(
-                'pass', function () {
-                    $result = call_user_func_array('trigger', func_get_args());
-                    return array_pop($result) !== false;
-                }
-            )
-        );
-        $twig->addFunction(
-            new \Twig_SimpleFunction(
-                'filter', function () {
-                    return call_user_func_array('filter', func_get_args());
-                }
-            )
-        );
-        $twig->addFunction(
-            new \Twig_SimpleFunction(
-                '__', function () {
-                    return call_user_func_array('self::gettext', func_get_args());
-                }
-            )
-        );
-        $twig->addFunction(
-            new \Twig_SimpleFunction(
-                'title', function () {
-                    return call_user_func_array('self::title', func_get_args());
-                }
-            )
-        );
-
-        $twig->addExtension(new \Twig_Extensions_Extension_Text());
-
-        // Add debugging tools
-        if ($PPHP['config']['global']['debug']) {
-            $twig->addExtension(new \Twig_Extension_Debug());
-            $twig->addFunction(
-                new \Twig_SimpleFunction(
-                    'debug', function () {
-                        return implode('', func_get_args());
-                    }
-                )
-            );
-        } else {
-            $twig->addFunction(
-                new \Twig_SimpleFunction(
-                    'debug', function () {
-                        return '';
-                    }
-                )
-            );
-            // Don't trust Twig to always mute dump() when debugging's off.
-            $twig->addFunction(
-                new \Twig_SimpleFunction(
-                    'dump', function () {
-                        return '';
-                    }
-                )
-            );
-        };
-
-        // exit tag
-        $twig->addTokenParser(new Pyrite_Twig_TokenParser());
-
-        self::$_twig = $twig;
-
-        // Non-system gettext init
-        $localeDir = $PPHP['dir'] . '/locales/';
-        self::$_gettext = new \Gettext\Translator();
-        $pos = array($localeDir . self::$_lang . '.po');
-        if (self::$_lang !== $PPHP['config']['global']['default_lang']) {
-            $pos[] = $localeDir . $PPHP['config']['global']['default_lang'] . '.po';
-        };
-        foreach ($pos as $po) {
-            if (file_exists($po)) {
-                try {
-                    self::$_gettext->loadTranslations(\Gettext\Translations::fromPoFile($po));
-                    break;
-                } catch (\Exception $e) {
-                    echo $e->getMessage();
-                };
-            };
-        };
-
-        $req = grab('request');
-        if (self::$_status !== 200) {
-            http_response_code(self::$_status);
-        };
-        if (!$req['binary']) {
-            try {
-                self::$_template = $twig->loadTemplate('layout.html');
-
-                array_merge_assoc(
-                    self::$_stash,
-                    array(
-                        'config' => $PPHP['config'],
-                        'session' => $_SESSION,
-                        'req' => $req
-                    )
-                );
-                self::$_template->displayBlock('head', self::$_stash);
+                self::$_gettext->loadTranslations(\Gettext\Translations::fromPoFile($po));
+                break;
             } catch (\Exception $e) {
                 echo $e->getMessage();
             };
-            flush();
-            ob_start();
         };
-    }
+    };
+
+    $req = grab('request');
+    if (self::$_status !== 200) {
+        http_response_code(self::$_status);
+    };
+    if (!$req['binary']) {
+        try {
+            self::$_template = $twig->loadTemplate('layout.html');
+
+            array_merge_assoc(
+                self::$_stash,
+                array(
+                    'config' => $PPHP['config'],
+                    'session' => $_SESSION,
+                    'req' => $req
+                )
+            );
+            self::$_template->displayBlock('head', self::$_stash);
+        } catch (\Exception $e) {
+            echo $e->getMessage();
+        };
+        flush();
+        ob_start();
+    };
+}
 
     /**
      * Clean up content capture and display main template
@@ -377,7 +404,7 @@ class Templating
      */
     public static function status($code)
     {
-        if ($code >= 100  &&  $code < 600) {
+        if ($code >= 100 && $code < 600) {
             self::$_status = (int)$code;
         };
     }
@@ -386,7 +413,7 @@ class Templating
      * Set a key in environment variables passed to templates
      *
      * @param string $key Variable name
-     * @param mixed  $val Any value
+     * @param mixed $val Any value
      *
      * @return null
      */
@@ -399,7 +426,7 @@ class Templating
      * Prepend new section to page title
      *
      * @param string $prepend New section of title text
-     * @param string $sep     Separator with current title
+     * @param string $sep Separator with current title
      *
      * @return null
      */
@@ -407,7 +434,7 @@ class Templating
     {
         self::$_stash['title'] = $prepend
             . (
-                isset(self::$_stash['title'])
+            isset(self::$_stash['title'])
                 ? ($sep . self::$_stash['title'])
                 : ''
             );
@@ -417,7 +444,7 @@ class Templating
      * Render a template file
      *
      * @param string $name File name from within templates/
-     * @param array  $args Associative array of variables to pass along
+     * @param array $args Associative array of variables to pass along
      *
      * @return null
      */
@@ -445,7 +472,7 @@ class Templating
      * Render all blocks from a template
      *
      * @param string $name File name from within templates/
-     * @param array  $args Associative array of variables to pass along
+     * @param array $args Associative array of variables to pass along
      *
      * @return array Associative array of all blocks rendered from the template
      */

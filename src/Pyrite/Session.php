@@ -25,7 +25,6 @@ namespace Pyrite;
  * @license   https://opensource.org/licenses/MIT  MIT
  * @link      https://github.com/vphantom/pyritephp
  */
-
 class Session
 {
     /**
@@ -35,15 +34,15 @@ class Session
      */
     public static function bootstrap()
     {
-        on('startup',        'Pyrite\Session::startup', 10);
-        on('cli_startup',    'Pyrite\Session::startupCLI', 10);
-        on('shutdown',       'Pyrite\Session::shutdown', 99);
-        on('login',          'Pyrite\Session::login', 1);
-        on('logout',         'Pyrite\Session::reset', 1);
-        on('user_changed',   'Pyrite\Session::reloadUser', 1);
+        on('startup', 'Pyrite\Session::startup', 10);
+        on('cli_startup', 'Pyrite\Session::startupCLI', 10);
+        on('shutdown', 'Pyrite\Session::shutdown', 99);
+        on('login', 'Pyrite\Session::login', 1);
+        on('logout', 'Pyrite\Session::reset', 1);
+        on('user_changed', 'Pyrite\Session::reloadUser', 1);
         on('outbox_changed', 'Pyrite\Session::reloadOutbox');
-        on('form_begin',     'Pyrite\Session::beginForm');
-        on('form_validate',  'Pyrite\Session::validateForm');
+        on('form_begin', 'Pyrite\Session::beginForm');
+        on('form_validate', 'Pyrite\Session::validateForm');
     }
 
     /**
@@ -63,16 +62,16 @@ class Session
         // HTTP_ACCEPT_ENCODING changes on Chrome 54 between GET and POST requests
         // HTTP_ACCEPT should change only in IE 6, so we'll tolerate it
         $magic
-            = (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '*')
-            . (isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '*')
-            . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '*')
-        ;
+            = (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '*')            
+            . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '*');
+
 
         // This is more sophisticated than just $_SERVER['REMOTE_ADDR']
         $req = grab('request');
         $magic .= $req['remote_addr'];
-
-        return md5($magic);
+        $magic = md5($magic);
+        
+        return $magic;
     }
 
     /**
@@ -111,13 +110,14 @@ class Session
             ini_set('session.cookie_secure', true);
         };
         session_start();
-        if (isset($_SESSION['magic'])) {
+
+             if (isset($_SESSION['magic'])) {
             if ($_SESSION['magic'] !== self::_magic()) {
                 self::reset();
-            };
+            }
         } else {
             self::_init();
-        };
+        }
     }
 
     /**
@@ -157,9 +157,9 @@ class Session
     /**
      * Attempt to attach a user to current session
      *
-     * @param string $email    E-mail address
+     * @param string $email E-mail address
      * @param string $password Plain text password (supplied via web form)
-     * @param string $onetime  One-time password instead of password
+     * @param string $onetime One-time password instead of password
      *
      * @return bool Whether the operation succeeded
      */
@@ -174,10 +174,10 @@ class Session
                 trigger(
                     'log',
                     array(
-                        'userId'     => $user['id'],
+                        'userId' => $user['id'],
                         'objectType' => 'user',
-                        'objectId'   => $user['id'],
-                        'action'     => 'login'
+                        'objectId' => $user['id'],
+                        'action' => 'login'
                     )
                 );
                 self::reset();
@@ -243,6 +243,12 @@ class Session
         $name = self::_formHash($name);
         $token = md5(random_bytes(32));
         $_SESSION[$name] = $token;
+
+/*        echo "Begin magic: " . $_SESSION['magic'] . "<br>";
+        echo "Begin Form Name: " . $name . "<br>";
+        echo "Begin Session Form Token Stored: " . $_SESSION[$name] . "<br>";*/
+
+
         return '<input type="hidden" name="'.$name.'" value="'.$token.'" />';
     }
 

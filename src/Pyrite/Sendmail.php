@@ -19,8 +19,8 @@
 namespace Pyrite;
 
 
-use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 /**
  * Sendmail class
@@ -108,14 +108,17 @@ class Sendmail
      */
     public static function getOutbox($all = false)
     {
+
         global $PPHP;
         $db = $PPHP['db'];
 
         $q = $db->query("SELECT *, datetime(modified, 'localtime') AS localmodified FROM emails");
         $q->where('NOT isSent');
         if (!$all) {
-            $q->and('sender = ?', $_SESSION['user']['id']);
-        };
+            if (isset($_SESSION['user']) && isset($_SESSION['user']['id'])) {
+                $q->and('sender = ?', $_SESSION['user']['id']);
+            }
+        }
         $outbox = $db->selectArray($q);
         foreach ($outbox as $key => $email) {
             $roles = array();
@@ -328,7 +331,7 @@ class Sendmail
         try {
             $mail->isSMTP();
             $mail->Host = $PPHP['config']['Mail']['host'];
-            $mail->SMTPAuth =  $PPHP['config']['Mail']['SMTP_Auth'];
+            $mail->SMTPAuth = $PPHP['config']['Mail']['SMTP_Auth'];
             $mail->Username = $PPHP['config']['Mail']['username'];
             $mail->Password = $PPHP['config']['Mail']['password'];
             //$mail->SMTPSecure = $PPHP['config']['Mail']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
@@ -361,14 +364,17 @@ class Sendmail
             }
 
             // Content
+            $mail->CharSet = 'UTF-8';
             $mail->isHTML(true);
             $mail->Subject = $subject;
             $mail->Body = $html;
             $mail->AltBody = strip_tags($html);
 
             // Attachments
-            foreach ($files as $file) {
-                $mail->addAttachment("{$PPHP['dir']}/{$file['path']}/{$file['name']}", $file['name']);
+            if (is_array($files)) {
+                foreach ($files as $file) {
+                    $mail->addAttachment($PPHP['dir'] . DIRECTORY_SEPARATOR . $file['path'] . DIRECTORY_SEPARATOR . $file['name'], $file['name']);
+                }
             }
 
             $mail->send();

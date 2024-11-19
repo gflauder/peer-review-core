@@ -40,13 +40,13 @@ class Router
      */
     public static function bootstrap()
     {
-        on('startup',           'Pyrite\Router::initRequest', 1);
-        on('cli_startup',       'Pyrite\Router::initCLI', 1);
-        on('startup',           'Pyrite\Router::startup', 50);
-        on('request',           'Pyrite\Router::getRequest');
-        on('http_status',       'Pyrite\Router::setStatus');
-        on('http_redirect',     'Pyrite\Router::setRedirect');
-        on('warning',           'Pyrite\Router::addWarning');
+        on('startup', 'Pyrite\Router::initRequest', 1);
+        on('cli_startup', 'Pyrite\Router::initCLI', 1);
+        on('startup', 'Pyrite\Router::startup', 50);
+        on('request', 'Pyrite\Router::getRequest');
+        on('http_status', 'Pyrite\Router::setStatus');
+        on('http_redirect', 'Pyrite\Router::setRedirect');
+        on('warning', 'Pyrite\Router::addWarning');
         on('no_fatal_warnings', 'Pyrite\Router::checkNoFatalWarnings');
     }
 
@@ -107,7 +107,7 @@ class Router
         global $PPHP;
 
         self::$_PATH = array();
-        self::$_req['lang']         = $PPHP['config']['global']['default_lang'];
+        self::$_req['lang'] = $PPHP['config']['global']['default_lang'];
         self::$_req['default_lang'] = $PPHP['config']['global']['default_lang'];
         self::$_req['base'] = '';
         self::$_req['binary'] = true;  // Keep layout template quiet
@@ -164,14 +164,14 @@ class Router
         self::$_req['remote_addr'] = self::_remoteIP();
         self::$_req['ssl']
             = (
-                (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                ||
-                (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
-                ||
-                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                ||
-                (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
-            );
+            (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            ||
+            (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+            ||
+            (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            ||
+            (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')
+        );
         self::$_req['get'] = $_GET;
         self::$_req['post'] = $_POST;
 
@@ -187,22 +187,43 @@ class Router
             };
         };
 
-        // Process file uploads
+// Process file uploads
         self::$_req['files'] = array();
         if (isset($_FILES) && count($_FILES) > 0) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             foreach ($_FILES as $key => $info) {
-                if (is_uploaded_file($info['tmp_name'])) {
-                    self::$_req['files'][$key] = $info;
-                    // Overwrite client's MIME Type with server's determination
-                    self::$_req['files'][$key]['type'] = finfo_file($finfo, $info['tmp_name']);
-                    foreach (pathinfo($info['name']) as $pik => $piv) {
-                        self::$_req['files'][$key][$pik] = $piv;
-                    };
-                };
-            };
+                if (is_array($info['tmp_name'])) {
+                    foreach ($info['tmp_name'] as $index => $tmpName) {
+                        if (!empty($tmpName) && is_uploaded_file($tmpName) && $info['size'][$index] > 0) {
+                            self::$_req['files'][$key][$index] = array(
+                                'name' => $info['name'][$index],
+                                'type' => finfo_file($finfo, $tmpName),
+                                'tmp_name' => $tmpName,
+                                'error' => $info['error'][$index],
+                                'size' => $info['size'][$index]
+                            );
+                            foreach (pathinfo($info['name'][$index]) as $pik => $piv) {
+                                self::$_req['files'][$key][$index][$pik] = $piv;
+                            }
+                        }
+                    }
+                } else {
+                    if (!empty($info['tmp_name']) && is_uploaded_file($info['tmp_name']) && $info['size'] > 0) {
+                        self::$_req['files'][$key] = array(
+                            'name' => $info['name'],
+                            'type' => finfo_file($finfo, $info['tmp_name']),
+                            'tmp_name' => $info['tmp_name'],
+                            'error' => $info['error'],
+                            'size' => $info['size']
+                        );
+                        foreach (pathinfo($info['name']) as $pik => $piv) {
+                            self::$_req['files'][$key][$pik] = $piv;
+                        }
+                    }
+                }
+            }
             finfo_close($finfo);
-        };
+        }
 
         self::_initCommon();
     }
@@ -250,7 +271,7 @@ class Router
             return;
         };
 
-        if (self::$_base !== null  &&  !pass('route/' . self::$_base, self::$_PATH)) {
+        if (self::$_base !== null && !pass('route/' . self::$_base, self::$_PATH)) {
             trigger('http_status', 500);
         };
     }
@@ -283,7 +304,7 @@ class Router
      */
     public static function setStatus($code)
     {
-        if ($code >= 100  &&  $code < 600) {
+        if ($code >= 100 && $code < 600) {
             self::$_req['status'] = $code;
         };
     }
@@ -318,9 +339,9 @@ class Router
      * If $args is not an array, it will be used directly as a single argument
      * for convenience.
      *
-     * @param string     $code  Warning code string
-     * @param int|null   $level Lowest=worst severity level
-     * @param mixed|null $args  Optional list of arguments
+     * @param string $code Warning code string
+     * @param int|null $level Lowest=worst severity level
+     * @param mixed|null $args Optional list of arguments
      *
      * @return null
      */
@@ -334,13 +355,13 @@ class Router
             $args = array($args);
         };
         switch ($level) {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-            break;
-        default:
-            $level = 1;
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                break;
+            default:
+                $level = 1;
         };
         self::$_req['warnings'][] = array($level, $code, $args);
     }
