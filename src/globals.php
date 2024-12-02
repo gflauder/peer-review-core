@@ -327,14 +327,14 @@ on(
         if (isset($req['get']['email']) && isset($req['get']['onetime'])) {
 
             // Account creation validation link
-            if (!pass('login', $req['get']['email'], null, $req['get']['onetime'])) return trigger('http_status', 403);
+            if (!pass('login', $req['get']['email'], null, $req['get']['onetime'])) return [trigger('is_login',true),trigger('http_status', 403)];
         } else {
 
             // Normal login
-            if (!pass('form_validate', 'login-form')) return trigger('http_status', 440);
+            if (!pass('form_validate', 'login-form')) return [trigger('is_login',true),trigger('http_status', 440)];
             usleep(500000);
             if (isset($req['post']['password']) && strlen($req['post']['password']) > 0) {
-                if (!pass('login', $req['post']['email'], $req['post']['password'])) return trigger('http_status', 403);
+                if (!pass('login', $req['post']['email'], $req['post']['password'])) return [trigger('isLogin',true),trigger('http_status', 403)];
             } else {
                 if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
                     if (($onetime = grab('user_update', $user['id'], array('onetime' => true))) !== false) {
@@ -351,11 +351,11 @@ on(
                         );
                     };
                 };
-                return trigger('http_status', 449);
+                return [trigger('is_login',true),trigger('http_status', 449)];
             };
         };
 
-        trigger('http_redirect', $req['base'] . '/');
+        trigger('http_redirect', $req['base'] );
     }
 );
 

@@ -46,6 +46,7 @@ class Router
         on('request', 'Pyrite\Router::getRequest');
         on('http_status', 'Pyrite\Router::setStatus');
         on('http_redirect', 'Pyrite\Router::setRedirect');
+        on('is_login', 'Pyrite\Router::setIsLogin');
         on('warning', 'Pyrite\Router::addWarning');
         on('no_fatal_warnings', 'Pyrite\Router::checkNoFatalWarnings');
     }
@@ -94,6 +95,7 @@ class Router
         self::$_req['warnings'] = array();
         self::$_req['status'] = 200;
         self::$_req['redirect'] = false;
+        self::$_req['isLogin'] = false;
         self::$_req['protocol'] = (self::$_req['ssl'] ? 'https' : 'http');
     }
 
@@ -307,6 +309,11 @@ class Router
         if ($code >= 100 && $code < 600) {
             self::$_req['status'] = $code;
         };
+    }
+
+    public static function setIsLogin(bool $bool)
+    {
+            self::$_req['isLogin'] = $bool;
     }
 
     /**
