@@ -334,7 +334,7 @@ on(
             if (!pass('form_validate', 'login-form')) return [trigger('is_login',true),trigger('http_status', 440)];
             usleep(500000);
             if (isset($req['post']['password']) && strlen($req['post']['password']) > 0) {
-                if (!pass('login', $req['post']['email'], $req['post']['password'])) return [trigger('isLogin',true),trigger('http_status', 403)];
+                if (!pass('login', $req['post']['email'], $req['post']['password'])) return [trigger('is_login',true),trigger('http_status', 403)];
             } else {
                 if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
                     if (($onetime = grab('user_update', $user['id'], array('onetime' => true))) !== false) {
@@ -350,6 +350,8 @@ on(
                             )
                         );
                     };
+                }else{
+                    return [trigger('is_login',true),trigger('http_status', 403)]; // User not found
                 };
                 return [trigger('is_login',true),trigger('http_status', 449)];
             };
