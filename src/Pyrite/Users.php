@@ -492,12 +492,16 @@ class Users
                     $out[] = $cleanId;
                 } else {
                     if (isset($userData[$id])) {
-                        $cols = $userData[$id];
+                        $cols['email'] = $id;
+                        $cols['name'] = $userData[$id]['name'];
+                        $cols['gender'] = $userData[$id]['gender'];
+                        $cols['profession'] = $userData[$id]['profession'];
+                        $cols['employer'] = $userData[$id]['employer'];
                     } else {
                         $cols = array();
                     };
-                    $cols['email'] = $id;
                     $newbie = self::create($cols);
+
                     if ($newbie !== false) {
                         $out[] = $newbie[0];
                         if ($template !== null) {

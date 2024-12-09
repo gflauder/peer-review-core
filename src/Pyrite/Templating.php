@@ -350,6 +350,7 @@ public static function startup()
                         'req' => grab('request')
                     )
                 );
+                //template Shutdown
                 self::$_template->displayBlock('body', self::$_stash);
             } catch (\Exception $e) {
                 echo $e->getMessage();
