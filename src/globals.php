@@ -357,7 +357,11 @@ on(
             };
         };
 
-        trigger('http_redirect', $req['base'] );
+        if ($req['base'] === "") {
+            $req['base'] = '/fr';
+        }
+
+        trigger('http_redirect', $req['base']);
     }
 );
 
