@@ -62,7 +62,7 @@ class Session
         // HTTP_ACCEPT_ENCODING changes on Chrome 54 between GET and POST requests
         // HTTP_ACCEPT should change only in IE 6, so we'll tolerate it
         $magic
-            = (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '*')            
+            = (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? $_SERVER['HTTP_ACCEPT_LANGUAGE'] : '*')
             . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '*');
 
 
@@ -70,7 +70,7 @@ class Session
         $req = grab('request');
         $magic .= $req['remote_addr'];
         $magic = md5($magic);
-        
+
         return $magic;
     }
 
@@ -111,7 +111,7 @@ class Session
         };
         session_start();
 
-             if (isset($_SESSION['magic'])) {
+        if (isset($_SESSION['magic'])) {
             if ($_SESSION['magic'] !== self::_magic()) {
                 self::reset();
             }
@@ -244,12 +244,12 @@ class Session
         $token = md5(random_bytes(32));
         $_SESSION[$name] = $token;
 
-/*        echo "Begin magic: " . $_SESSION['magic'] . "<br>";
-        echo "Begin Form Name: " . $name . "<br>";
-        echo "Begin Session Form Token Stored: " . $_SESSION[$name] . "<br>";*/
+        /*        echo "Begin magic: " . $_SESSION['magic'] . "<br>";
+                echo "Begin Form Name: " . $name . "<br>";
+                echo "Begin Session Form Token Stored: " . $_SESSION[$name] . "<br>";*/
 
 
-        return '<input type="hidden" name="'.$name.'" value="'.$token.'" />';
+        return '<input type="hidden" name="' . $name . '" value="' . $token . '" />';
     }
 
     /**

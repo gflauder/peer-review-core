@@ -327,7 +327,9 @@ on(
         if (isset($req['get']['email']) && isset($req['get']['onetime'])) {
 
             // Account creation validation link
-            if (!pass('login', $req['get']['email'], null, $req['get']['onetime'])) return [trigger('is_login',true),trigger('http_status', 403)];
+            if (!pass('login', $req['get']['email'], null, $req['get']['onetime']))
+                return [trigger('is_login',true),trigger('http_status', 403)];
+
         } else {
 
             // Normal login
@@ -351,7 +353,8 @@ on(
                         );
                     };
                 }else{
-                    return [trigger('is_login',true),trigger('http_status', 403)]; // User not found
+                   //return [trigger('is_login',true),trigger('http_status', 403)]; // User not found
+                    return  trigger('http_redirect', $req['base'] . '/register'); // User not found
                 };
                 return [trigger('is_login',true),trigger('http_status', 449)];
             };
@@ -459,6 +462,25 @@ on(
             'user_history.html',
             array(
                 'history' => $history
+            )
+        );
+    }
+);
+
+on(
+    'route/auth',
+    function () {
+        global $PPHP;
+        //$config = $PPHP['config'];
+        //$req = grab('request');
+        $created = false;
+        $success = false;
+        trigger(
+            'render',
+            'login.html',
+            array(
+                'created' => $created,
+                'success' => $success
             )
         );
     }
