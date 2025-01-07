@@ -330,13 +330,14 @@ class Sendmail
 
         try {
             $mail->isSMTP();
+            $mail->Mailer = $PPHP['config']['Mail']['Mailer'];
             $mail->Host = $PPHP['config']['Mail']['host'];
             $mail->SMTPAuth = $PPHP['config']['Mail']['SMTP_Auth'];
             $mail->Username = $PPHP['config']['Mail']['username'];
             $mail->Password = $PPHP['config']['Mail']['password'];
             //$mail->SMTPSecure = $PPHP['config']['Mail']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port = $PPHP['config']['Mail']['port'];
-            $mail->SMTPSecure = null;
+            $mail->SMTPSecure = $PPHP['config']['Mail']['SMTPSecure'];
 
             // Custom header
             $mail->addCustomHeader('X-Mailer-Info', 'PyritePHP v1.0');
