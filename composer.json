@@ -1,6 +1,6 @@
 {
-	"name": "gflauder/pyritephp",
-	"description": "PyritePHP",
+	"name": "gflauder/PeerReview",
+	"description": "Core functionality for https://github.com/gflauder/PeerReview software",
 	"type": "library",
 	"license": "MIT",
 	"authors": [
