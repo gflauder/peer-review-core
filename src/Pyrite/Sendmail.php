@@ -330,7 +330,7 @@ class Sendmail
 
         try {
             $mail->isSMTP();
-            $mail->Mailer = $PPHP['config']['Mail']['Mailer'];
+            //$mail->Mailer = $PPHP['config']['Mail']['Mailer'];
             $mail->Host = $PPHP['config']['Mail']['host'];
             $mail->SMTPAuth = $PPHP['config']['Mail']['SMTP_Auth'];
             $mail->Username = $PPHP['config']['Mail']['username'];
@@ -385,7 +385,8 @@ class Sendmail
                     $mail->addAttachment($PPHP['dir'] . DIRECTORY_SEPARATOR . $file['path'] . DIRECTORY_SEPARATOR . $file['name'], $file['name']);
                 }
             }
-
+            $mail->SMTPDebug = 2;  // 2 for detailed client-server communication
+            $mail->Debugoutput = 'html';  // Show debugging info in readable format
             $mail->send();
             return true;
         } catch (Exception $e) {
