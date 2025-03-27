@@ -326,48 +326,69 @@ class Sendmail
     {
         global $PPHP;
 
+        // Show all errors
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
+
+        // Ensure config is loaded
+        if (!isset($PPHP['config']['Mail']) || empty($PPHP['config']['Mail'])) {
+            die('❌ Mail config not loaded');
+        }
+
         $mail = new PHPMailer(true);
 
         try {
+            // Enable SMTP Debugging
+            $mail->SMTPDebug = 2;
+            $mail->Debugoutput = function ($str, $level) {
+                echo "SMTP Debug [$level]: $str\n";
+                flush();
+            };
+
+            // SMTP Config
             $mail->isSMTP();
-            //$mail->Mailer = $PPHP['config']['Mail']['Mailer'];
             $mail->Host = $PPHP['config']['Mail']['host'];
-            $mail->SMTPAuth = $PPHP['config']['Mail']['SMTP_Auth'];
+            $mail->SMTPAuth = true;
             $mail->Username = $PPHP['config']['Mail']['username'];
             $mail->Password = $PPHP['config']['Mail']['password'];
-            //$mail->SMTPSecure = $PPHP['config']['Mail']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port = $PPHP['config']['Mail']['port'];
 
-            // Ensure encryption type is valid
-            $encryption = strtolower($PPHP['config']['Mail']['SMTPSecure']);
-            if ($encryption === 'tls') {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            } elseif ($encryption === 'ssl') {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            } else {
-                $mail->SMTPSecure = '';
-            }
-            // Custom header
-            //$mail->addCustomHeader('X-Mailer-Info', 'Revue Criminologie');
-            // From
+            // Ensure encryption is set properly
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+
+            // Set sender
             $mail->setFrom($PPHP['config']['Mail']['mail_from_address'], $PPHP['config']['Mail']['mail_from_name']);
 
+            // Debug recipient array
+            var_dump($to, $cc, $bcc);
+            flush();
 
             // Add recipients
-            // Add recipients
             foreach ($to as $recipient) {
+                if (!filter_var($recipient['email'], FILTER_VALIDATE_EMAIL)) {
+                    die("❌ Invalid email in 'to': " . $recipient['email']);
+                }
                 $mail->addAddress($recipient['email'], $recipient['name']);
             }
+
             if ($cc) {
                 foreach ($cc as $recipient) {
+                    if (!filter_var($recipient['email'], FILTER_VALIDATE_EMAIL)) {
+                        die("❌ Invalid email in 'cc': " . $recipient['email']);
+                    }
                     $mail->addCC($recipient['email'], $recipient['name']);
                 }
             }
+
             if ($bcc) {
                 foreach ($bcc as $recipient) {
+                    if (!filter_var($recipient['email'], FILTER_VALIDATE_EMAIL)) {
+                        die("❌ Invalid email in 'bcc': " . $recipient['email']);
+                    }
                     $mail->addBCC($recipient['email'], $recipient['name']);
                 }
             }
+
             if ($mailfrom) {
                 $mail->addReplyTo($mailfrom);
             }
@@ -382,18 +403,30 @@ class Sendmail
             // Attachments
             if (is_array($files)) {
                 foreach ($files as $file) {
-                    $mail->addAttachment($PPHP['dir'] . DIRECTORY_SEPARATOR . $file['path'] . DIRECTORY_SEPARATOR . $file['name'], $file['name']);
+                    $path = $PPHP['dir'] . DIRECTORY_SEPARATOR . $file['path'] . DIRECTORY_SEPARATOR . $file['name'];
+                    if (!file_exists($path)) {
+                        die("❌ Attachment missing: $path");
+                    }
+                    $mail->addAttachment($path, $file['name']);
                 }
             }
-            $mail->SMTPDebug = 2;  // 2 for detailed client-server communication
-            $mail->Debugoutput = 'html';  // Show debugging info in readable format
-            $mail->send();
-            return true;
+
+            echo "📩 Sending email...\n";
+            flush();
+
+            if ($mail->send()) {
+                echo "✅ Email sent successfully!\n";
+                return true;
+            } else {
+                echo "❌ Failed to send email.\n";
+                return false;
+            }
         } catch (Exception $e) {
-            error_log("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            echo "❌ Error: " . $mail->ErrorInfo . "\n";
             return false;
         }
     }
+
 
     /**
      * Convert an array of userIDs to an RFC822 to/cc/bcc string
