@@ -1,6 +1,6 @@
 {
-	"name": "gflauder/PeerReview",
-	"description": "Core functionality for https://github.com/gflauder/PeerReview software",
+	"name": "gflauder/peer-review-core",
+	"description": "Core functionality for https://github.com/gflauder/peer-review software",
 	"type": "library",
 	"license": "MIT",
 	"authors": [

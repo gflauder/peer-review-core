@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vphantom/pyritephp.git"
+    "url": "git+https://github.com/gflauder/peerreviewcore.git"
   },
-  "author": "Stéphane Lavergne <lis@imars.com> (https://github.com/vphantom)",
+  "author": "Stéphane Lavergne <lis@imars.com> (https://github.com/gflauder)",
   "license": "MIT",
   "private": true,
   "bugs": {
-    "url": "https://github.com/vphantom/pyritephp/issues"
+    "url": "https://github.com/gflauder/peerreviewcore/issues"
   },
-  "homepage": "https://github.com/vphantom/pyritephp#readme",
+  "homepage": "https://github.com/gflauder/peerreviewcore/#readme",
   "devDependencies": {
     "eslint": "^6.8.0"
   }
