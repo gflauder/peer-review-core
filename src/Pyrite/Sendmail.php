@@ -337,10 +337,18 @@ class Sendmail
             $mail->Password = $PPHP['config']['Mail']['password'];
             //$mail->SMTPSecure = $PPHP['config']['Mail']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port = $PPHP['config']['Mail']['port'];
-            $mail->SMTPSecure = $PPHP['config']['Mail']['SMTPSecure'];
 
+            // Ensure encryption type is valid
+            $encryption = strtolower($PPHP['config']['Mail']['SMTPSecure']);
+            if ($encryption === 'tls') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            } elseif ($encryption === 'ssl') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            } else {
+                $mail->SMTPSecure = '';
+            }
             // Custom header
-            $mail->addCustomHeader('X-Mailer-Info', 'PyritePHP v1.0');
+            //$mail->addCustomHeader('X-Mailer-Info', 'Revue Criminologie');
             // From
             $mail->setFrom($PPHP['config']['Mail']['mail_from_address'], $PPHP['config']['Mail']['mail_from_name']);
 
