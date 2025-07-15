@@ -326,6 +326,8 @@ on(
 
         if (isset($req['get']['email']) && isset($req['get']['onetime'])) {
 
+            $req['get']['email'] = strtolower($req['get']['email']);
+
             // Account creation validation link
             if (!pass('login', $req['get']['email'], null, $req['get']['onetime']))
                 return [trigger('is_login',true),trigger('http_status', 403)];
@@ -333,11 +335,20 @@ on(
         } else {
 
             // Normal login
-            if (!pass('form_validate', 'login-form')) return [trigger('is_login',true),trigger('http_status', 440)];
+            if (!pass('form_validate', 'login-form'))
+                return [trigger('is_login',true),trigger('http_status', 440)];
+
             usleep(500000);
+
             if (isset($req['post']['password']) && strlen($req['post']['password']) > 0) {
+
+                $req['post']['email'] = strtolower($req['post']['email']);
+
                 if (!pass('login', $req['post']['email'], $req['post']['password'])) return [trigger('is_login',true),trigger('http_status', 403)];
             } else {
+
+                $req['post']['email'] = strtolower($req['post']['email']);
+
                 if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
                     if (($onetime = grab('user_update', $user['id'], array('onetime' => true))) !== false) {
                         $link = 'login?' . http_build_query(array( 'email' => $req['post']['email'], 'onetime' => $onetime));
@@ -494,10 +505,13 @@ on(
         $req = grab('request');
         $created = false;
         $success = false;
+
         if (isset($req['post']['email'])) {
             if (!pass('form_validate', 'registration')) return trigger('http_status', 440);
             $created = true;
-            $req['post']['email'] = filter('clean_email', $req['post']['email']);
+
+
+            $req['post']['email'] = strtolower(filter('clean_email', $req['post']['email']));
             $req['post']['name'] = filter('clean_name', $req['post']['name']);
 
             if (isset($config['global']['mail_reject'])
