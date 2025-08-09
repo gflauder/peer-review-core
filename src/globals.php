@@ -505,57 +505,83 @@ on(
         $req = grab('request');
         $created = false;
         $success = false;
+        $error = null;
 
         if (isset($req['post']['email'])) {
             if (!pass('form_validate', 'registration')) return trigger('http_status', 440);
-            $created = true;
 
+            // Verify reCAPTCHA first
+            $recaptchaToken = $req['post']['g-recaptcha-response'] ?? '';
+            $secretKey = $config['recaptcha']['secret_key'] ?? '';
 
-            $req['post']['email'] = strtolower(filter('clean_email', $req['post']['email']));
-            $req['post']['name'] = filter('clean_name', $req['post']['name']);
-
-            if (isset($config['global']['mail_reject'])
-                && preg_match($config['global']['mail_reject'], $req['post']['email']) == 1
-            ) {
-                return trigger('http_status', 403);
-            };
-
-            if (($newbie = grab('user_create', $req['post'])) !== false) {
-                $id = $newbie[0];
-                $success = true;
-                trigger('http_status', 201);
-                if (pass('can', 'create', 'user')) {
-                    trigger('send_invite', 'invitation', $id);
-                    $roles = preg_split('/[\s]+/', $config['acl']['invited_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
-                } else {
-                    trigger('send_invite', 'confirmlink', $id);
-                    $roles = preg_split('/[\s]+/', $config['acl']['registered_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
-                };
-                foreach ($roles as $role) {
-                    trigger('grant', $id, $role);
-                };
+            if (empty($secretKey)) {
+                error_log("reCAPTCHA secret key not configured");
+                $created = true;
+                $success = false;
+                $error = 'system_error';
+            } else if (empty($recaptchaToken)) {
+                error_log("Registration blocked - Missing reCAPTCHA token for IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+                $created = true;
+                $success = false;
+                $error = 'recaptcha_failed';
+            } else if (!verifyRecaptcha($recaptchaToken, $secretKey)) {
+                error_log("Registration blocked - reCAPTCHA verification failed for IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+                $created = true;
+                $success = false;
+                $error = 'recaptcha_failed';
             } else {
-                if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
-                    // Onetime failed because user exists, warn of duplicate
-                    // attempt via e-mail, don't hint that the user exists on
-                    // the web though!
-                    $success = true;
-                    trigger(
-                        'sendmail',
-                        $user['id'],
-                        null,
-                        null,
-                        'duplicate'
-                    );
+                // reCAPTCHA passed, proceed with registration
+                $created = true;
+
+                $req['post']['email'] = strtolower(filter('clean_email', $req['post']['email']));
+                $req['post']['name'] = filter('clean_name', $req['post']['name']);
+
+                if (isset($config['global']['mail_reject'])
+                    && preg_match($config['global']['mail_reject'], $req['post']['email']) == 1
+                ) {
+                    return trigger('http_status', 403);
                 };
-            };
+
+                if (($newbie = grab('user_create', $req['post'])) !== false) {
+                    $id = $newbie[0];
+                    $success = true;
+                    error_log("Registration successful for user ID: $id with reCAPTCHA verification");
+                    trigger('http_status', 201);
+                    if (pass('can', 'create', 'user')) {
+                        trigger('send_invite', 'invitation', $id);
+                        $roles = preg_split('/[\s]+/', $config['acl']['invited_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
+                    } else {
+                        trigger('send_invite', 'confirmlink', $id);
+                        $roles = preg_split('/[\s]+/', $config['acl']['registered_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
+                    };
+                    foreach ($roles as $role) {
+                        trigger('grant', $id, $role);
+                    };
+                } else {
+                    if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
+                        // Onetime failed because user exists, warn of duplicate
+                        // attempt via e-mail, don't hint that the user exists on
+                        // the web though!
+                        $success = true;
+                        trigger(
+                            'sendmail',
+                            $user['id'],
+                            null,
+                            null,
+                            'duplicate'
+                        );
+                    };
+                };
+            }
         };
+
         trigger(
             'render',
             'register.html',
             array(
                 'created' => $created,
-                'success' => $success
+                'success' => $success,
+                'error' => $error
             )
         );
     }
@@ -959,3 +985,70 @@ on(
         return grab('sendmail', ($sendto ? $sendto : $userId), null, null, $template, $args, array(), $nodelay);
     }
 );
+
+/**
+ * Verify reCAPTCHA v3 token
+ *
+ * @param string $token reCAPTCHA token from frontend
+ * @param string $secretKey Secret key from config
+ * @param float $minScore Minimum acceptable score (default 0.5)
+ * @return bool True if verification passes
+ */
+function verifyRecaptcha($token, $secretKey, $minScore = 0.5)
+{
+    if (empty($token) || empty($secretKey)) {
+        error_log("reCAPTCHA: Missing token or secret key");
+        return false;
+    }
+
+    $url = 'https://www.google.com/recaptcha/api/siteverify';
+    $data = [
+        'secret' => $secretKey,
+        'response' => $token,
+        'remoteip' => $_SERVER['REMOTE_ADDR'] ?? ''
+    ];
+
+    $options = [
+        'http' => [
+            'header' => "Content-type: application/x-www-form-urlencoded\r\n",
+            'method' => 'POST',
+            'content' => http_build_query($data),
+            'timeout' => 10
+        ]
+    ];
+
+    $context = stream_context_create($options);
+    $result = @file_get_contents($url, false, $context);
+
+    if ($result === FALSE) {
+        error_log("reCAPTCHA: Failed to connect to verification server");
+        return false;
+    }
+
+    $response = json_decode($result, true);
+
+    if (!isset($response['success'])) {
+        error_log("reCAPTCHA: Invalid response format");
+        return false;
+    }
+
+    if (!$response['success']) {
+        $errors = isset($response['error-codes']) ? implode(', ', $response['error-codes']) : 'Unknown error';
+        error_log("reCAPTCHA: Verification failed - " . $errors);
+        return false;
+    }
+
+    // Check action
+    if (isset($response['action']) && $response['action'] !== 'registration') {
+        error_log("reCAPTCHA: Invalid action - expected 'registration', got '" . $response['action'] . "'");
+        return false;
+    }
+
+    // Check score
+    if (isset($response['score']) && $response['score'] < $minScore) {
+        error_log("reCAPTCHA: Score too low - " . $response['score'] . " (minimum: " . $minScore . ")");
+        return false;
+    }
+
+    return true;
+}
