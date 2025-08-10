@@ -65,22 +65,22 @@ class Sendmail
         $db->begin();
         $db->exec(
             "
-            CREATE TABLE IF NOT EXISTS 'emails' (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                sender      INTEGER NOT NULL DEFAULT '0',
-                isSent      BOOL NOT NULL DEFAULT '0',
-                modified    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                contextType VARCHAR(64) DEFAULT NULL,
-                contextId   INTEGER DEFAULT NULL,
-                mailfrom    INTEGER NOT NULL DEFAULT '0',
-                recipients  VARCHAR(255) NOT NULL DEFAULT '',
-                ccs         VARCHAR(255) NOT NULL DEFAULT '',
-                bccs        VARCHAR(255) NOT NULL DEFAULT '',
-                subject     TEXT NOT NULL DEFAULT '',
-                html        TEXT NOT NULL DEFAULT '',
-                files       BLOB,
-                FOREIGN KEY(sender) REFERENCES users(id)
-            )
+            CREATE TABLE IF NOT EXISTS emails (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender      INTEGER NOT NULL DEFAULT 0,
+      isSent      BOOLEAN NOT NULL DEFAULT 0,
+      modified    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      contextType VARCHAR(64) DEFAULT NULL,
+      contextId   INTEGER DEFAULT NULL,
+      mailfrom    INTEGER NOT NULL DEFAULT 0,
+      recipients  VARCHAR(255) NOT NULL DEFAULT '',
+      ccs         VARCHAR(255) NOT NULL DEFAULT '',
+      bccs        VARCHAR(255) NOT NULL DEFAULT '',
+      subject     TEXT NOT NULL DEFAULT '',
+      html        TEXT NOT NULL DEFAULT '',
+      files       BLOB,
+      FOREIGN KEY(sender) REFERENCES users(id)
+)
             "
         );
         $db->commit();
@@ -381,9 +381,49 @@ class Sendmail
 
             // Attachments
             if (is_array($files)) {
-                foreach ($files as $file) {
-                    $mail->addAttachment($PPHP['dir'] . DIRECTORY_SEPARATOR . $file['path'] . DIRECTORY_SEPARATOR . $file['name'], $file['name']);
+                error_log("EMAIL DEBUG: Starting file attachment process");
+                error_log("EMAIL DEBUG: Number of files: " . count($files));
+
+                foreach ($files as $index => $file) {
+                    $storedPath = $file['path'];
+
+                    // Only accept properly formatted relative paths starting with 'var/articles/'
+                    if (strpos($storedPath, 'var/articles/') !== 0) {
+                        error_log("EMAIL ERROR: Invalid path format in file data: " . $storedPath);
+                        return false; // Fail the entire email send
+                    }
+                    // Construct the full path
+                    $fullPath = rtrim($PPHP['dir'], '/') . '/' . $storedPath . '/' . $file['name'];
+
+                    error_log("EMAIL DEBUG: Attaching file: " . $fullPath);
+
+
+                    $realPath = realpath($fullPath);
+                    error_log("DEBUG: PHP running as UID: " . posix_getuid());
+                    error_log("DEBUG: File owner UID: " . fileowner('/var/www/html/var/articles/99.9/415/Eval_2.docx'));
+
+                    error_log("DEBUG: realpath result: " . ($realPath ?: 'FALSE'));
+                    if ($realPath) {
+                        error_log("DEBUG: realpath exists: " . (file_exists($realPath) ? 'YES' : 'NO'));
+                    }
+
+
+
+                    if (file_exists($fullPath) && is_readable($fullPath)) {
+                        try {
+                            $mail->addAttachment($fullPath, $file['name']);
+                            error_log("EMAIL DEBUG: Successfully attached: " . $file['name']);
+                        } catch (Exception $e) {
+                            error_log("EMAIL ERROR: PHPMailer attachment failed for " . $file['name'] . ": " . $e->getMessage());
+                            return false; // Fail the entire email send
+                        }
+                    } else {
+                        error_log("EMAIL ERROR: File not found or not readable: " . $fullPath);
+                        return false; // Fail the entire email send
+                    }
                 }
+            } else {
+                error_log("EMAIL DEBUG: No files array or files array is empty");
             }
 
             $mail->send();
