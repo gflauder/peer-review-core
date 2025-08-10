@@ -66,7 +66,7 @@ class Sendmail
         $db->exec(
             "
             CREATE TABLE IF NOT EXISTS emails (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      id          INTEGER PRIMARY KEY AUTO_INCREMENT,
       sender      INTEGER NOT NULL DEFAULT 0,
       isSent      BOOLEAN NOT NULL DEFAULT 0,
       modified    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
