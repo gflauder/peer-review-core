@@ -425,69 +425,103 @@ $().ready(function() {  // eslint-disable-line max-statements
 
         return opt;
       },
-      onOptionAdd: function(value, data) {
+      onOptionAdd: function (value, data) {
         var sel = this;
         var form = $('#user-modal form');
 
-        // Not much works unless we let Selectize finish first.
-        setTimeout(function() {
-          form.find('input').val(null);
+        // Check if this option already has complete data
+        if (data.name && data.email) {
+          return;
+        }
+
+        // Remove the incomplete option temporarily
+        sel.removeOption(value);
+        sel.removeItem(value);
+
+        setTimeout(function () {
+          form.find('input').val('');
           form.find('select').prop('selectedIndex', 0);
-          form.parsley().reset();
 
           $('#user-modal .modal-title .text').text(value);
           $('#user-modal input[name=email]').val(value);
 
-          $('#user-modal').modal({
+          var myModal = new bootstrap.Modal(document.getElementById('user-modal'), {
             backdrop: 'static',
-            keyboard: false,
-            show    : true
+            keyboard: false
           });
-          setTimeout(
-            function() {
-              form
-                .find('input:visible, select:visible')
-                .first()
-                .focus();
-            },
-            350
-          );
 
-          $('#user-modal .modal-footer button').on('click', function() {
-            var outform = $(sel.$wrapper).closest('form');
-            var outbase = $('#user-modal').attr('data-append-base');
-            var outkey  = $('#user-modal').attr('data-append-key');
-            var outdata = {};
+          var userSaved = false;
 
-            if (form.parsley().validate()) {
-              $(this).off('click');
-              form.serializeArray().forEach(function(item) {
+          myModal.show();
+
+          setTimeout(function () {
+            form.find('input:visible, select:visible').first().focus();
+          }, 350);
+
+          // Handle modal close/cancel - remove user completely
+          $('#user-modal').on('hidden.bs.modal', function() {
+            if (!userSaved) {
+              sel.removeOption(value);
+              sel.removeItem(value);
+              console.log('User creation cancelled for:', value);
+            }
+            $(this).off('hidden.bs.modal');
+            $('#user-modal button').off('click.usermodal');
+          });
+
+          // Handle the close button (X) in modal header
+          $('#user-modal .btn-close').off('click.usermodal').on('click.usermodal', function() {
+            console.log('Close (X) button clicked');
+            userSaved = false;
+            myModal.hide();
+          });
+
+          // Handle the Add button in modal footer
+          $('#user-modal .modal-footer .btn-outline-secondary').off('click.usermodal').on('click.usermodal', function() {
+            console.log('Add button clicked, validating...');
+
+            var isValid = form.parsley().validate();
+            console.log('Form validation result:', isValid);
+
+            if (isValid) {
+              console.log('Validation passed');
+              var outform = $(sel.$wrapper).closest('form');
+              var outbase = $('#user-modal').attr('data-append-base');
+              var outkey = $('#user-modal').attr('data-append-key');
+              var outdata = {};
+
+              userSaved = true;
+
+              form.serializeArray().forEach(function (item) {
                 outdata[item.name] = item.value;
               });
               outkey = outdata[outkey];
 
-              data['name'] = outdata['name'];
+              var completeUserData = {
+                text: data.text,
+                value: value,
+                email: data.email,
+                name: outdata['name'],
+                isComplete: true,
+                isTemporary: false
+              };
 
-              Object.keys(outdata).forEach(function(key) {
+              Object.keys(outdata).forEach(function (key) {
                 outform.append(
-                  $('<input />')
-                    .attr('type', 'hidden')
-                    .attr('name', outbase + '[' + outkey + '][' + key + ']')
-                    .attr('value', outdata[key])
+                    $('<input />').attr('type', 'hidden').attr('name', outbase + '[' + outkey + '][' + key + ']').attr('value', outdata[key])
                 );
               });
 
-              // Destroy the popover before its element disappears.
-              // tag.popover('destroy');
-              $('#user-modal').modal('hide');
+              sel.addOption(completeUserData);
+              sel.addItem(value);
 
-              // Force a refresh of our items where refreshItems() won't.
-              // Thanks: https://github.com/selectize/selectize.js/issues/1162
-              // sel.clearCache();
-              sel.updateOption(value, sel.options[value]);
-
-              // Work around strange bug which reopens the select after creation
+              myModal.hide();
               sel.close();
+              console.log('User created successfully:', outdata.name, '(' + value + ')');
+            } else {
+              console.log('Validation failed - errors should be visible now');
+              form.find('.parsley-errors-list').show();
+              form.find('.has-error input, .parsley-error').first().focus();
             }
           });
         });
