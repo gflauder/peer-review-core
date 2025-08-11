@@ -368,8 +368,11 @@ class Sendmail
                     $mail->addBCC($recipient['email'], $recipient['name']);
                 }
             }
-            if ($mailfrom) {
-                $mail->addReplyTo($mailfrom);
+            if ($mailfrom && is_array($mailfrom) && !empty($mailfrom)) {
+                $replyTo = is_array($mailfrom[0]) ? $mailfrom[0] : $mailfrom;
+                if (isset($replyTo['email'])) {
+                    $mail->addReplyTo($replyTo['email'], $replyTo['name'] ?? '');
+                }
             }
 
             // Content
