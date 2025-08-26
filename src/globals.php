@@ -980,6 +980,15 @@ on(
         if (!$user || !$onetime) {
             return false;
         };
+
+        // Decode HTML entities in article title if present
+        if (isset($args['article']) && isset($args['article']['title'])) {
+            // First decode &amp; to & to handle double encoding
+            $title = trim(str_replace('&amp;', '&', $args['article']['title']));
+            // Then decode all HTML entities
+            $args['article']['title'] = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        
         $link = 'login?' . http_build_query(array( 'email' => $user['email'], 'onetime' => $onetime));
         $args['validation_link'] = $link;
         return grab('sendmail', ($sendto ? $sendto : $userId), null, null, $template, $args, array(), $nodelay);

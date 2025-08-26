@@ -370,8 +370,10 @@ class Sendmail
             }
             if ($mailfrom && is_array($mailfrom) && !empty($mailfrom)) {
                 $replyTo = is_array($mailfrom[0]) ? $mailfrom[0] : $mailfrom;
-                if (isset($replyTo['email'])) {
+                if (is_array($replyTo) && isset($replyTo['email'])) {
                     $mail->addReplyTo($replyTo['email'], $replyTo['name'] ?? '');
+                } elseif (is_string($replyTo)) {
+                    $mail->addReplyTo($replyTo);
                 }
             }
 
@@ -491,6 +493,10 @@ class Sendmail
         global $PPHP;
 
         $blocks = grab('render_blocks', 'email/' . $template, $args);
+        // Decode HTML entities in the subject line
+        if (isset($blocks['subject'])) {
+            $blocks['subject'] = html_entity_decode($blocks['subject'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
 
         if (!is_array($to)) {
             $to = array($to);

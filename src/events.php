@@ -134,3 +134,14 @@ function ensure(string $event, callable $listener = null) {
         return call_user_func_array(end($listeners), array_slice(func_get_args(), 2));
     }
 }
+
+// Add this function to your events module or create a filter for article data
+function decode_article_title($article) {
+    if (isset($article['title'])) {
+        // First decode &amp; to & to handle double encoding
+        $title = str_replace('&amp;', '&', $article['title']);
+        // Then decode all HTML entities
+        $article['title'] = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+    return $article;
+}
