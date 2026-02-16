@@ -536,42 +536,54 @@ on(
                 $req['post']['email'] = strtolower(filter('clean_email', $req['post']['email']));
                 $req['post']['name'] = filter('clean_name', $req['post']['name']);
 
-                if (isset($config['global']['mail_reject'])
-                    && preg_match($config['global']['mail_reject'], $req['post']['email']) == 1
-                ) {
-                    return trigger('http_status', 403);
-                };
+                // Check for URLs in text fields (spam pattern)
+                $spamPattern = '/https?:\/\/|:\/\/|\.page\.link|\.link\//i';
+                foreach (['name', 'profession', 'employer'] as $field) {
+                    if (isset($req['post'][$field]) && preg_match($spamPattern, $req['post'][$field])) {
+                        $success = false;
+                        $error = 'spam_detected';
+                        break;
+                    }
+                }
 
-                if (($newbie = grab('user_create', $req['post'])) !== false) {
-                    $id = $newbie[0];
-                    $success = true;
-                    error_log("Registration successful for user ID: $id with reCAPTCHA verification");
-                    trigger('http_status', 201);
-                    if (pass('can', 'create', 'user')) {
-                        trigger('send_invite', 'invitation', $id);
-                        $roles = preg_split('/[\s]+/', $config['acl']['invited_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
-                    } else {
-                        trigger('send_invite', 'confirmlink', $id);
-                        $roles = preg_split('/[\s]+/', $config['acl']['registered_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
+                if ($error === null) {
+                    if (isset($config['global']['mail_reject'])
+                        && preg_match($config['global']['mail_reject'], $req['post']['email']) == 1
+                    ) {
+                        return trigger('http_status', 403);
                     };
-                    foreach ($roles as $role) {
-                        trigger('grant', $id, $role);
-                    };
-                } else {
-                    if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
-                        // Onetime failed because user exists, warn of duplicate
-                        // attempt via e-mail, don't hint that the user exists on
-                        // the web though!
+
+                    if (($newbie = grab('user_create', $req['post'])) !== false) {
+                        $id = $newbie[0];
                         $success = true;
-                        trigger(
-                            'sendmail',
-                            $user['id'],
-                            null,
-                            null,
-                            'duplicate'
-                        );
+                        error_log("Registration successful for user ID: $id with reCAPTCHA verification");
+                        trigger('http_status', 201);
+                        if (pass('can', 'create', 'user')) {
+                            trigger('send_invite', 'invitation', $id);
+                            $roles = preg_split('/[\s]+/', $config['acl']['invited_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
+                        } else {
+                            trigger('send_invite', 'confirmlink', $id);
+                            $roles = preg_split('/[\s]+/', $config['acl']['registered_auto_roles'], null, PREG_SPLIT_NO_EMPTY);
+                        };
+                        foreach ($roles as $role) {
+                            trigger('grant', $id, $role);
+                        };
+                    } else {
+                        if (($user = grab('user_fromemail', $req['post']['email'])) !== false) {
+                            // Onetime failed because user exists, warn of duplicate
+                            // attempt via e-mail, don't hint that the user exists on
+                            // the web though!
+                            $success = true;
+                            trigger(
+                                'sendmail',
+                                $user['id'],
+                                null,
+                                null,
+                                'duplicate'
+                            );
+                        };
                     };
-                };
+                }
             }
         };
 
